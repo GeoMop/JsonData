@@ -12,16 +12,16 @@ import json
 
 def test_json_data():
     # create, serialize
-    class A(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = "test"
-            self.c = 2.0
+    @jsondata
+    class A:
+        a: int = 1
+        b: str = "test"
+        c: float = 2.0
+
+        def __attrs_post_init__(self):
             self._u = 5
 
-            super().__init__(config)
-
-    a = A({"a": 2})
+    a = A.deserialize({"a": 2})
 
     assert a.a == 2
     assert a.b == "test"
@@ -32,14 +32,12 @@ def test_json_data():
     assert  dumped == '{"__class__": "A", "a": 2, "b": "test", "c": 2.0}'
 
     # JsonData object
-    class B(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = A()
+    @jsondata
+    class B:
+        a: int = 1
+        b: A = attr.ib(factory=A)
 
-            super().__init__(config)
-
-    b = B({"a": 2, "b": {"__class__": "A", "a": 3, "b": "aaa"}})
+    b = B.deserialize({"a": 2, "b": {"__class__": "A", "a": 3, "b": "aaa"}})
 
     assert b.a == 2
     assert b.b.__class__ is A
@@ -50,21 +48,17 @@ def test_json_data():
         '{"__class__": "B", "a": 2, "b": {"__class__": "A", "a": 3, "b": "aaa", "c": 2.0}}'
 
     # ClassFactory
-    class A2(JsonData):
-        def __init__(self, config={}):
-            self.x = 2
-            self.y = "test2"
+    @jsondata
+    class A2:
+        x: int = 2
+        y: str = "test2"
 
-            super().__init__(config)
+    @jsondata
+    class C:
+        a: int = 1
+        b: Union[A, A2] = attr.ib(factory=A)
 
-    class C(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = ClassFactory([A, A2])
-
-            super().__init__(config)
-
-    c = C({"a": 2, "b": {"__class__": "A", "a": 3, "b": "aaa"}})
+    c = C.deserialize({"a": 2, "b": {"__class__": "A", "a": 3, "b": "aaa"}})
 
     assert c.a == 2
     assert c.b.__class__ is A
@@ -75,67 +69,55 @@ def test_json_data():
         '{"__class__": "C", "a": 2, "b": {"__class__": "A", "a": 3, "b": "aaa", "c": 2.0}}'
 
     # dict
-    class D(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = {"a": 1, "b": 2.0, "c": A({"a": 2})}
+    @jsondata
+    class D:
+        a: int = 1
+        b: Dict[str, int] = {"a": 1, "b":2}
 
-            super().__init__(config)
-
-    d = D({"a": 2, "b": {"a": 3, "b": 3.0, "c": {"__class__": "A", "a": 3}}})
+    d = D.deserialize({"a": 2, "b": {"c": 3, "d": 4}})
 
     assert d.a == 2
     assert isinstance(d.b, dict)
-    assert d.b["a"] == 3
-    assert d.b["b"] == 3.0
-    assert d.b["c"].__class__ is A
-    assert d.b["c"].a == 3
+    assert d.b == {"c": 3, "d": 4}
 
     assert json.dumps(d.serialize(), sort_keys=True) ==\
-        '{"__class__": "D", "a": 2, "b": {"a": 3, "b": 3.0, "c": {"__class__": "A", "a": 3, "b": "test", "c": 2.0}}}'
+        '{"__class__": "D", "a": 2, "b": {"c": 3, "d": 4}}'
 
     # list in list in dict
-    class D2(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = {"a": 1, "b": 2.0, "c": [[1]]}
+    @jsondata
+    class D2:
+        a: int = 1
+        b: Dict[str, List[List[int]]] = {"a": [[1]]}
 
-            super().__init__(config)
+    d2 = D2.deserialize({"a": 2, "b": {"a": [[6, 7]], "c": [[2, 3], [4, 5]]}})
 
-    d2 = D2({"a": 2, "b": {"a": 3, "b": 3.0, "c": [[2, 3], [4, 5]]}})
-
-    assert d2.b["a"] == 3
     assert d2.b["c"][0][0] == 2
     assert d2.b["c"][1][1] == 5
 
     assert json.dumps(d2.serialize(), sort_keys=True) ==\
-        '{"__class__": "D2", "a": 2, "b": {"a": 3, "b": 3.0, "c": [[2, 3], [4, 5]]}}'
+        '{"__class__": "D2", "a": 2, "b": {"a": [[6, 7]], "c": [[2, 3], [4, 5]]}}'
 
     # empty list
-    class E(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = []
-
-            super().__init__(config)
-
-    e = E({"a": 2, "b": [1, 2.0, "aaa"]})
-
-    assert e.b[0] == 1
-    assert e.b[1] == 2.0
-    assert e.b[2] == "aaa"
-
-    assert json.dumps(e.serialize(), sort_keys=True) == '{"__class__": "E", "a": 2, "b": [1, 2.0, "aaa"]}'
+    # @jsondata
+    # class E:
+    #     a: int = 1
+    #     b: List[Any] = []
+    #
+    # e = E.deserialize({"a": 2, "b": [1, 2.0, "aaa"]})
+    #
+    # assert e.b[0] == 1
+    # assert e.b[1] == 2.0
+    # assert e.b[2] == "aaa"
+    #
+    # assert json.dumps(e.serialize(), sort_keys=True) == '{"__class__": "E", "a": 2, "b": [1, 2.0, "aaa"]}'
 
     # list with one item
-    class E2(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = [A({"a": 2})]
+    @jsondata
+    class E2:
+        a: int = 1
+        b: List[A] = [A({"a": 2})]
 
-            super().__init__(config)
-
-    e2 = E2({"a": 2, "b": [{"__class__": "A", "a": 3}, {"__class__": "A", "a": 5}]})
+    e2 = E2.deserialize({"a": 2, "b": [{"__class__": "A", "a": 3}, {"__class__": "A", "a": 5}]})
 
     assert e2.b[0].__class__ == A
     assert e2.b[0].a == 3
@@ -146,14 +128,12 @@ def test_json_data():
         '{"__class__": "A", "a": 5, "b": "test", "c": 2.0}]}'
 
     # tuple
-    class F(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = (1, 2.0, A({"a": 2}))
+    @jsondata
+    class F:
+        a: int = 1
+        b: Tuple[int, float, A] = (1, 2.0, A({"a": 2}))
 
-            super().__init__(config)
-
-    f = F({"a": 2, "b": [2, 3.0, {"__class__": "A", "a": 3}]})
+    f = F.deserialize({"a": 2, "b": [2, 3.0, {"__class__": "A", "a": 3}]})
 
     assert isinstance(f.b, tuple)
     assert f.b[0] == 2
@@ -172,54 +152,22 @@ def test_json_data():
         pass
 
     # recursion
-    class G(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = (1, 2.0, [A({"a": 2})])
-            self.c = {"a": 2, "b": {"c": ClassFactory([A, A2])}}
+    @jsondata
+    class G:
+        a: int = 1
+        b: Tuple[int, float, List[A]] = (1, 2.0, [A({"a": 2})])
 
-            super().__init__(config)
-
-    g = G({"a": 2, "b": [2, 3.0, [{"__class__": "A", "a": 3}, {"__class__": "A", "a": 5}]],
-           "c": {"a": 3, "b": {"c": {"__class__": "A", "a": 7}}}})
+    g = G.deserialize({"a": 2, "b": [2, 3.0, [{"__class__": "A", "a": 3}, {"__class__": "A", "a": 5}]]})
 
     assert isinstance(g.b, tuple)
     assert g.b[1] == 3.0
     assert g.b[2].__class__ is list
     assert g.b[2][1].__class__ is A
     assert g.b[2][1].a == 5
-    assert isinstance(g.c, dict)
-    assert g.c["a"] == 3
-    assert isinstance(g.c["b"], dict)
-    assert g.c["b"]["c"].__class__ is A
-    assert g.c["b"]["c"].a == 7
 
     assert json.dumps(g.serialize(), sort_keys=True) ==\
         '{"__class__": "G", "a": 2, "b": [2, 3.0, [{"__class__": "A", "a": 3, "b": "test", "c": 2.0}, ' \
-        '{"__class__": "A", "a": 5, "b": "test", "c": 2.0}]], ' \
-        '"c": {"a": 3, "b": {"c": {"__class__": "A", "a": 7, "b": "test", "c": 2.0}}}}'
-
-    # serialized_attr
-    class H(JsonData):
-        _serialized_attrs_ = ["a", "b", "_u"]
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = "test"
-            self.c = 2.0
-            self._u = 5
-            self._v = 6
-
-            super().__init__(config)
-
-    h = H({"a": 2, "_u": 7})
-
-    assert h.a == 2
-    assert h.b == "test"
-    assert h.c == 2.0
-    assert h._u == 7
-    assert h._v == 6
-
-    assert json.dumps(h.serialize(), sort_keys=True) == '{"__class__": "H", "_u": 7, "a": 2, "b": "test"}'
+        '{"__class__": "A", "a": 5, "b": "test", "c": 2.0}]]}'
 
     # IntEnum
     class MyEnum(IntEnum):
@@ -227,15 +175,13 @@ def test_json_data():
         E2 = 2
         E3 = 3
 
-    class I(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.b = "test"
-            self.c = MyEnum.E1
+    @jsondata
+    class I:
+        a: int = 1
+        b: str = "test"
+        c: MyEnum = MyEnum.E1
 
-            super().__init__(config)
-
-    i = I({"a": 2, "c": "E2"})
+    i = I.deserialize({"a": 2, "c": "E2"})
 
     assert i.a == 2
     assert i.b == "test"
@@ -245,13 +191,11 @@ def test_json_data():
 
 
 def test_dict_modification():
-    class A(JsonData):
-        def __init__(self, config={}):
-            self.a = 1
-            self.c = {'x':1, 'y':2}
+    @jsondata
+    class A:
+        a: int = 1
+        c: Dict[str, int] = {'x':1, 'y':2}
 
-            super().__init__(config)
-
-    a = A(dict(a=2))
+    a = A.deserialize(dict(a=2))
     assert a.a == 2
     assert a.c == {'x':1, 'y':2}
