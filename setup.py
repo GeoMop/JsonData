@@ -149,7 +149,7 @@ setuptools.setup(
     # include automatically all files in the template MANIFEST.in
     # include_package_data=True,
     zip_safe=False,
-    install_requires=[],
+    install_requires=['attrs'],
     python_requires='>=3',
     # extras_require={
     #     # eg:
