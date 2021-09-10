@@ -120,18 +120,18 @@ def _check_type(type):
         return
 
     # List
-    if hasattr(type, "__origin__") and type.__origin__ is list:
+    if hasattr(type, "__origin__") and type.__origin__ in [list, List]:
         _check_type(type.__args__[0])
         return
 
     # Tuple
-    if hasattr(type, "__origin__") and type.__origin__ is tuple:
+    if hasattr(type, "__origin__") and type.__origin__ in [tuple, Tuple]:
         for t in type.__args__:
             _check_type(t)
         return
 
     # Dict
-    if hasattr(type, "__origin__") and type.__origin__ is dict and type.__args__[0] is str:
+    if hasattr(type, "__origin__") and type.__origin__ in [dict, Dict] and type.__args__[0] is str:
         _check_type(type.__args__[1])
         return
 
@@ -226,15 +226,15 @@ def _deserialize_item(type, value, path):
         return value
 
     # list
-    elif hasattr(type, "__origin__") and type.__origin__ is list:
-        assert value.__class__ is list
+    elif hasattr(type, "__origin__") and type.__origin__ in [list, List]:
+        assert isinstance(value, list)
         l = []
         for ival, v in enumerate(value):
             l.append(_deserialize_item(type.__args__[0], v, path + [str(ival)]))
         return l
 
     # tuple
-    elif hasattr(type, "__origin__") and type.__origin__ is tuple:
+    elif hasattr(type, "__origin__") and type.__origin__ in [tuple, Tuple]:
         assert isinstance(value, (list, tuple)), "Expecting list, get class: {}\npath: {}".format(value.__class__, path)
         assert len(type.__args__) == len(value), "Length of tuple do not match: {} != {}".format(len(type.__args__), len(value))
         l = []
@@ -243,8 +243,8 @@ def _deserialize_item(type, value, path):
         return tuple(l)
 
     # dict
-    elif hasattr(type, "__origin__") and type.__origin__ is dict:
-        assert value.__class__ is dict
+    elif hasattr(type, "__origin__") and type.__origin__ in [dict, Dict]:
+        assert isinstance(value, dict)
         d = {}
         for k, v in value.items():
             d[k] = _deserialize_item(type.__args__[1], v, path + [k])
@@ -254,9 +254,9 @@ def _deserialize_item(type, value, path):
     else:
         # IntEnum
         if issubclass(type, IntEnum):
-            if value.__class__ is str:
+            if isinstance(value, str):
                 return type[value]
-            elif value.__class__ is int:
+            elif isinstance(value, int):
                 return type(value)
             elif isinstance(value, type):
                 return value
