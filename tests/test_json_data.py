@@ -72,7 +72,7 @@ def test_json_data():
     @jsondata
     class D:
         a: int = 1
-        b: Dict[str, int] = {"a": 1, "b":2}
+        b: Dict[str, int] = {"a": 1, "b": 2}
 
     d = D.deserialize({"a": 2, "b": {"c": 3, "d": 4}})
 
@@ -83,19 +83,34 @@ def test_json_data():
     assert json.dumps(d.serialize(), sort_keys=True) ==\
         '{"__class__": "D", "a": 2, "b": {"c": 3, "d": 4}}'
 
-    # list in list in dict
+    # dict with int index
     @jsondata
     class D2:
         a: int = 1
+        b: Dict[int, int] = {1: 1, 2: 2}
+
+    d = D2.deserialize({"a": 2, "b": {"3": 3, "4": 4}})
+
+    assert d.a == 2
+    assert isinstance(d.b, dict)
+    assert d.b == {3: 3, 4: 4}
+
+    assert json.dumps(d.serialize(), sort_keys=True) ==\
+        '{"__class__": "D2", "a": 2, "b": {"3": 3, "4": 4}}'
+
+    # list in list in dict
+    @jsondata
+    class D3:
+        a: int = 1
         b: Dict[str, List[List[int]]] = {"a": [[1]]}
 
-    d2 = D2.deserialize({"a": 2, "b": {"a": [[6, 7]], "c": [[2, 3], [4, 5]]}})
+    d2 = D3.deserialize({"a": 2, "b": {"a": [[6, 7]], "c": [[2, 3], [4, 5]]}})
 
     assert d2.b["c"][0][0] == 2
     assert d2.b["c"][1][1] == 5
 
     assert json.dumps(d2.serialize(), sort_keys=True) ==\
-        '{"__class__": "D2", "a": 2, "b": {"a": [[6, 7]], "c": [[2, 3], [4, 5]]}}'
+        '{"__class__": "D3", "a": 2, "b": {"a": [[6, 7]], "c": [[2, 3], [4, 5]]}}'
 
     # empty list
     # @jsondata

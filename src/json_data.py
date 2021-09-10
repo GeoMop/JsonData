@@ -131,7 +131,7 @@ def _check_type(type):
         return
 
     # Dict
-    if hasattr(type, "__origin__") and type.__origin__ in [dict, Dict] and type.__args__[0] is str:
+    if hasattr(type, "__origin__") and type.__origin__ in [dict, Dict] and type.__args__[0] in [str, int]:
         _check_type(type.__args__[1])
         return
 
@@ -247,6 +247,8 @@ def _deserialize_item(type, value, path):
         assert isinstance(value, dict)
         d = {}
         for k, v in value.items():
+            if type.__args__[0] is int:
+                k = int(k)
             d[k] = _deserialize_item(type.__args__[1], v, path + [k])
         return d
 
@@ -298,6 +300,7 @@ def _serialize_object(obj):
     elif isinstance(obj, dict):
         d = {}
         for k, v in obj.items():
+            k = str(k)
             d[k] = _serialize_object(v)
         return d
     elif isinstance(obj, list) or isinstance(obj, tuple):
