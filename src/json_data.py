@@ -103,6 +103,15 @@ def jsondata(cls=None):
     return wrap(cls)
 
 
+def serialize(obj):
+    return _serialize_object(obj)
+
+
+def deserialize(type, value, path=[]):
+    _check_type(type)
+    return _deserialize_item(type, value, path)
+
+
 def _check_type(type):
     """Checks if type is supported by json data."""
     # base types
