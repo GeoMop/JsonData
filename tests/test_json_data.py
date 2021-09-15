@@ -214,3 +214,29 @@ def test_dict_modification():
     a = A.deserialize(dict(a=2))
     assert a.a == 2
     assert a.c == {'x':1, 'y':2}
+
+
+def test_without_type():
+    # JsonData object
+    @jsondata
+    class A:
+        a: int = 1
+
+    @jsondata
+    class B:
+        b: str = "a"
+
+    a = deserialize({"__class__": "A", "a": 2}, cls_dict={"A": A, "B": B})
+    assert a.a == 2
+
+    # base types
+    b = 2
+    assert deserialize(b) == b
+
+    # dicts
+    d = {"a": 1, "b": 2}
+    assert deserialize(d) == d
+
+    # lists
+    l = [2, 3, 4]
+    assert deserialize(l) == l

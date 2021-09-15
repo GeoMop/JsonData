@@ -107,7 +107,39 @@ def serialize(obj):
     return _serialize_object(obj)
 
 
-def deserialize(type, value, path=[]):
+def deserialize(value, type=None, cls_dict={}, path=[]):
+    """
+    Deserialize value.
+
+    :param value: value for deserialization
+    :param type: type for assign value
+    :param cls_dict: dictionary of possible classes for deserialization {"Name": Class}
+    :return:
+    """
+    if type is None:
+        base = [str, float, int, bool]
+        if builtins.type(value) in base:
+            return value
+        elif isinstance(value, dict):
+            if "__class__" in value:
+                name = value["__class__"]
+                if name in cls_dict:
+                    type = cls_dict[name]
+                else:
+                    raise Exception("Class is not in cls_dict dictionary.")
+            else:
+                d = {}
+                for k, v in value.items():
+                    d[k] = deserialize(v, path=path + [k])
+                return d
+        elif isinstance(value, list):
+            l = []
+            for ival, v in enumerate(value):
+                l.append(deserialize(v, path=path + [str(ival)]))
+            return l
+        else:
+            raise Exception("Unable to deserialize item without type.")
+
     _check_type(type)
     return _deserialize_item(type, value, path)
 
