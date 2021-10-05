@@ -103,8 +103,8 @@ def jsondata(cls=None):
     return wrap(cls)
 
 
-def serialize(obj):
-    return _serialize_object(obj)
+def serialize(obj, module=False):
+    return _serialize_object(obj, module)
 
 
 def deserialize(value, type=None, cls_dict={}, path=[]):
@@ -113,7 +113,7 @@ def deserialize(value, type=None, cls_dict={}, path=[]):
 
     :param value: value for deserialization
     :param type: type for assign value
-    :param cls_dict: dictionary of possible classes for deserialization {"Name": Class}
+    :param cls_dict: dictionary of possible classes for deserialization {("Module", "Name"): Class}
     :return:
     """
     if type is None:
@@ -123,8 +123,13 @@ def deserialize(value, type=None, cls_dict={}, path=[]):
         elif isinstance(value, dict):
             if "__class__" in value:
                 name = value["__class__"]
-                if name in cls_dict:
-                    type = cls_dict[name]
+                if "__module__" in value:
+                    module = value["__module__"]
+                else:
+                    module = ""
+                k = (module, name)
+                if k in cls_dict:
+                    type = cls_dict[k]
                 else:
                     raise Exception("Class is not in cls_dict dictionary.")
             else:
@@ -205,6 +210,7 @@ def _deserialize(cls, config, path=[]):
     """Factory method for creating object from config dictionary."""
     config = config.copy()
     config.pop("__class__", None)
+    config.pop("__module__", None)
 
     new_config = {}
     for at in cls.__attrs_attrs__:
@@ -247,7 +253,7 @@ def _deserialize_item(type, value, path):
 
             t = None
             for a in args:
-                if a.__name__ == value["__class__"]:
+                if a.__name__ == value["__class__"] and ("__module__" not in value or a.__module__ == value["__module__"]):
                     t = a
                     break
             else:
@@ -314,40 +320,42 @@ def _deserialize_item(type, value, path):
             return filled_template
 
 
-def _serialize(self):
+def _serialize(self, module=False):
     """
     Serialize the object.
     :return:
     """
-    return _get_dict(self)
+    return _get_dict(self, module)
 
 
-def _get_dict(obj):
+def _get_dict(obj, module):
     """Return dict for serialization."""
     sa = [at.name for at in obj.__attrs_attrs__]
     d = {"__class__": obj.__class__.__name__}
+    if module:
+        d["__module__"] = obj.__class__.__module__
     for k, v in obj.__dict__.items():
         if k in sa:
-            d[k] = _serialize_object(v)
+            d[k] = _serialize_object(v, module)
     return d
 
 
-def _serialize_object(obj):
+def _serialize_object(obj, module):
     """Prepare object for serialization."""
     if hasattr(obj.__class__, _JSON_DATA_TAG):
-        return _get_dict(obj)
+        return _get_dict(obj, module)
     elif isinstance(obj, IntEnum):
         return obj.name
     elif isinstance(obj, dict):
         d = {}
         for k, v in obj.items():
             k = str(k)
-            d[k] = _serialize_object(v)
+            d[k] = _serialize_object(v, module)
         return d
     elif isinstance(obj, list) or isinstance(obj, tuple):
         l = []
         for v in obj:
-            l.append(_serialize_object(v))
+            l.append(_serialize_object(v, module))
         return l
     else:
         return obj

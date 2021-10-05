@@ -226,7 +226,7 @@ def test_without_type():
     class B:
         b: str = "a"
 
-    a = deserialize({"__class__": "A", "a": 2}, cls_dict={"A": A, "B": B})
+    a = deserialize({"__class__": "A", "__module__": "__name__", "a": 2}, cls_dict={("__name__", "A"): A, ("__name__", "B"): B})
     assert a.a == 2
 
     # base types
@@ -240,3 +240,14 @@ def test_without_type():
     # lists
     l = [2, 3, 4]
     assert deserialize(l) == l
+
+
+def test_modules():
+    from modules import module1, module2
+
+    a = module1.A(a=2)
+    dumped = json.dumps(a.serialize(module=True), sort_keys=True)
+    assert dumped == '{"__class__": "A", "__module__": "modules.module1", "a": 2}'
+
+    b = deserialize(json.loads(dumped), type=Union[module1.A, module2.A])
+    assert b.__class__ is module1.A
