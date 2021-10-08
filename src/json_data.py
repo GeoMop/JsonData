@@ -107,13 +107,14 @@ def serialize(obj, module=False):
     return _serialize_object(obj, module)
 
 
-def deserialize(value, type=None, cls_dict={}, path=[]):
+def deserialize(value, type=None, cls_dict={}, path=[], module=True):
     """
     Deserialize value.
 
     :param value: value for deserialization
     :param type: type for assign value
     :param cls_dict: dictionary of possible classes for deserialization {("Module", "Name"): Class}
+    :param module: check module
     :return:
     """
     if type is None:
@@ -123,12 +124,17 @@ def deserialize(value, type=None, cls_dict={}, path=[]):
         elif isinstance(value, dict):
             if "__class__" in value:
                 name = value["__class__"]
-                if "__module__" in value:
-                    module = value["__module__"]
+                if module and "__module__" in value:
+                    k = (value["__module__"], name)
+                    if k not in cls_dict:
+                        k = None
                 else:
-                    module = ""
-                k = (module, name)
-                if k in cls_dict:
+                    for k in cls_dict:
+                        if k[1] == name:
+                            break
+                    else:
+                        k = None
+                if k is not None:
                     type = cls_dict[k]
                 else:
                     raise Exception("Class is not in cls_dict dictionary.")
@@ -146,7 +152,7 @@ def deserialize(value, type=None, cls_dict={}, path=[]):
             raise Exception("Unable to deserialize item without type.")
 
     _check_type(type)
-    return _deserialize_item(type, value, path)
+    return _deserialize_item(type, value, path, module)
 
 
 def _check_type(type):
@@ -206,7 +212,7 @@ def _check_type(type):
     raise Exception("Bad type format.")
 
 
-def _deserialize(cls, config, path=[]):
+def _deserialize(cls, config, path=[], module=True):
     """Factory method for creating object from config dictionary."""
     config = config.copy()
     config.pop("__class__", None)
@@ -215,7 +221,7 @@ def _deserialize(cls, config, path=[]):
     new_config = {}
     for at in cls.__attrs_attrs__:
         if at.name in config:
-            new_config[at.name] = _deserialize_item(at.type, config.pop(at.name), path + [at.name])
+            new_config[at.name] = _deserialize_item(at.type, config.pop(at.name), path + [at.name], module)
         elif at.default is attr.NOTHING:
             raise Exception("Missing obligatory key, path: {}".format(path + [at.name]))
 
@@ -226,7 +232,7 @@ def _deserialize(cls, config, path=[]):
     return cls(**new_config)
 
 
-def _deserialize_item(type, value, path):
+def _deserialize_item(type, value, path, module):
     """
     Deserialize value.
 
@@ -253,7 +259,7 @@ def _deserialize_item(type, value, path):
 
             t = None
             for a in args:
-                if a.__name__ == value["__class__"] and ("__module__" not in value or a.__module__ == value["__module__"]):
+                if a.__name__ == value["__class__"] and (not module or "__module__" not in value or a.__module__ == value["__module__"]):
                     t = a
                     break
             else:
@@ -277,7 +283,7 @@ def _deserialize_item(type, value, path):
         assert isinstance(value, list)
         l = []
         for ival, v in enumerate(value):
-            l.append(_deserialize_item(type.__args__[0], v, path + [str(ival)]))
+            l.append(_deserialize_item(type.__args__[0], v, path + [str(ival)], module))
         return l
 
     # tuple
@@ -286,7 +292,7 @@ def _deserialize_item(type, value, path):
         assert len(type.__args__) == len(value), "Length of tuple do not match: {} != {}".format(len(type.__args__), len(value))
         l = []
         for i, typ, val in zip(range(len(value)), type.__args__, value):
-            l.append(_deserialize_item(typ, val, path + [str(i)]))
+            l.append(_deserialize_item(typ, val, path + [str(i)], module))
         return tuple(l)
 
     # dict
@@ -296,7 +302,7 @@ def _deserialize_item(type, value, path):
         for k, v in value.items():
             if type.__args__[0] is int:
                 k = int(k)
-            d[k] = _deserialize_item(type.__args__[1], v, path + [k])
+            d[k] = _deserialize_item(type.__args__[1], v, path + [k], module)
         return d
 
     # other scalar types
