@@ -309,6 +309,8 @@ def _deserialize_item(type, value, path, module):
     else:
         # IntEnum
         if issubclass(type, IntEnum):
+            if isinstance(value, dict):
+                return type[value["item_name"]]
             if isinstance(value, str):
                 return type[value]
             elif isinstance(value, int):
@@ -351,7 +353,11 @@ def _serialize_object(obj, module):
     if hasattr(obj.__class__, _JSON_DATA_TAG):
         return _get_dict(obj, module)
     elif isinstance(obj, IntEnum):
-        return obj.name
+        d = {"__class__": obj.__class__.__name__}
+        if module:
+            d["__module__"] = obj.__class__.__module__
+        d["item_name"] = obj.name
+        return d
     elif isinstance(obj, dict):
         d = {}
         for k, v in obj.items():

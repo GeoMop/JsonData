@@ -196,13 +196,14 @@ def test_json_data():
         b: str = "test"
         c: MyEnum = MyEnum.E1
 
-    i = I.deserialize({"a": 2, "c": "E2"})
+    i = I.deserialize({"a": 2, "c": {"__class__": "MyEnum", "item_name": "E2"}})
 
     assert i.a == 2
     assert i.b == "test"
     assert i.c == MyEnum.E2
 
-    assert json.dumps(i.serialize(), sort_keys=True) == '{"__class__": "I", "a": 2, "b": "test", "c": "E2"}'
+    assert json.dumps(i.serialize(), sort_keys=True) == '{"__class__": "I", "a": 2, "b": "test", ' \
+                                                        '"c": {"__class__": "MyEnum", "item_name": "E2"}}'
 
 
 def test_dict_modification():
@@ -240,6 +241,14 @@ def test_without_type():
     # lists
     l = [2, 3, 4]
     assert deserialize(l) == l
+
+    # IntEnum
+    class E(IntEnum):
+        E1 = 1
+        E2 = 2
+
+    e = deserialize({"__class__": "E", "__module__": "__name__", "item_name": "E2"}, cls_dict={("__name__", "A"): A, ("__name__", "E"): E})
+    assert e == E.E2
 
 
 def test_modules():
